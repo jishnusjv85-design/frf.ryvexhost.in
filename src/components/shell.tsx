@@ -24,6 +24,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { LogoFull, LogoMark } from "@/components/logo";
+import { Spinner } from "@/components/ui";
 import { useData } from "@/lib/data-context";
 import { inrCompact } from "@/lib/format";
 import { boqTotal } from "@/lib/types";
@@ -200,12 +201,45 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data, mutate } = useData();
   const { dark, toggle } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("frf-user");
+    if (raw) {
+      try {
+        setCurrentUser(JSON.parse(raw));
+      } catch {
+        localStorage.removeItem("frf-user");
+      }
+    }
+    setAuthLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser && pathname !== "/login") {
+      router.replace("/login");
+    } else if (currentUser && pathname === "/login") {
+      router.replace("/");
+    }
+  }, [currentUser, pathname, authLoading, router]);
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -220,6 +254,18 @@ export function Shell({ children }: { children: ReactNode }) {
   }, []);
 
   const unread = data?.notifications.filter((n) => !n.read) ?? [];
+
+  if (authLoading || (!currentUser && pathname !== "/login")) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0b1220]">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (pathname === "/login") {
+    return <div className="min-h-screen bg-[#fafafa] dark:bg-[#0b1220]">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen">
@@ -340,11 +386,15 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="relative">
             <button onClick={() => setProfileOpen((v) => !v)} className="flex items-center gap-2.5 rounded-xl px-1.5 py-1 hover:bg-slate-100 dark:hover:bg-slate-800">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-bold text-white shadow-md shadow-blue-500/30">
-                FA
+                {currentUser ? getInitials(currentUser.name) : "US"}
               </span>
               <span className="hidden text-left sm:block">
-                <span className="block text-[13px] leading-tight font-semibold text-slate-800 dark:text-white">Faheem</span>
-                <span className="block text-[11px] leading-tight text-slate-400">Admin</span>
+                <span className="block text-[13px] leading-tight font-semibold text-slate-800 dark:text-white">
+                  {currentUser?.name || "User"}
+                </span>
+                <span className="block text-[11px] leading-tight text-slate-400">
+                  {currentUser?.role || "Viewer"}
+                </span>
               </span>
             </button>
             <AnimatePresence>
@@ -369,6 +419,17 @@ export function Shell({ children }: { children: ReactNode }) {
                       {i.label}
                     </Link>
                   ))}
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("frf-user");
+                      setCurrentUser(null);
+                      setProfileOpen(false);
+                      router.push("/login");
+                    }}
+                    className="block w-full text-left px-4 py-2 text-[13px] font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                  >
+                    Sign Out
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

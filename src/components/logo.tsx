@@ -10,9 +10,9 @@ export function LogoMark({ size = 40, className = "" }: { size?: number; classNa
     >
       <defs>
         <linearGradient id="frfGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#3B82F6" />
-          <stop offset="0.55" stopColor="#2563EB" />
-          <stop offset="1" stopColor="#1D4ED8" />
+          <stop stopColor="#FF8C64" />
+          <stop offset="0.55" stopColor="#FF6B35" />
+          <stop offset="1" stopColor="#E04E17" />
         </linearGradient>
       </defs>
       <rect width="48" height="48" rx="14" fill="url(#frfGrad)" />
