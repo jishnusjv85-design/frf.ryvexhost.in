@@ -14,7 +14,7 @@ import {
   StickyNote,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/table";
 import { Badge, Button, Card, Field, inputCls, Modal, PageHeader, ProgressBar, Spinner } from "@/components/ui";
 import { useData, useDraft } from "@/lib/data-context";
@@ -55,6 +55,17 @@ export default function StatusPage() {
   const [editing, setEditing] = useState<DailyEntry | null>(null);
   const [form, setForm, clearDraft] = useDraft<DraftForm>("daily-update", emptyForm);
   const [saving, setSaving] = useState(false);
+
+  const [prepUser, setPrepUser] = useState("Faheem");
+  useEffect(() => {
+    const raw = localStorage.getItem("frf-user");
+    if (raw) {
+      try {
+        const u = JSON.parse(raw);
+        if (u && u.name) setPrepUser(u.name);
+      } catch {}
+    }
+  }, []);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -183,7 +194,7 @@ export default function StatusPage() {
     <div>
       <PageHeader
         title="Status"
-        subtitle={`Prepared by Faheem · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}
+        subtitle={`Prepared by ${prepUser} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}
         actions={
           <>
             <Button variant="outline" onClick={exportCsv}><Download size={15} /> Export</Button>

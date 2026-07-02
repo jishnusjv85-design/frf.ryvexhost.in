@@ -54,7 +54,7 @@ export default function SettingsPage() {
               Toggle dark mode anytime from the top bar. Your preference is remembered on this device.
             </p>
             <div className="mt-4 flex gap-2">
-              {["#2563eb", "#0ea5e9", "#6366f1", "#06b6d4"].map((c) => (
+              {["#ff6b35", "#ff8c64", "#f59e0b", "#e04e17"].map((c) => (
                 <span key={c} className="h-8 w-8 rounded-xl ring-2 ring-white shadow dark:ring-slate-700" style={{ background: c }} />
               ))}
               <span className="ml-2 self-center text-xs text-slate-400">FRF brand palette</span>

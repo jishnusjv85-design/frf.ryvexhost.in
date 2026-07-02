@@ -40,7 +40,7 @@ const compact = (v: number) => {
   return `₹${v}`;
 };
 
-export const BLUES = ["#2563eb", "#0ea5e9", "#6366f1", "#06b6d4", "#3b82f6", "#818cf8", "#38bdf8", "#1d4ed8", "#a5b4fc", "#7dd3fc", "#93c5fd", "#67e8f9", "#4f46e5", "#0284c7"];
+export const BLUES = ["#ff6b35", "#ff8c64", "#f59e0b", "#f87171", "#fb923c", "#fca5a5", "#fdba74", "#e04e17", "#ea580c", "#d97706", "#ef4444"];
 
 export function LineChart({
   labels,

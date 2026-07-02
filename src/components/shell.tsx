@@ -46,7 +46,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
   return (
     <div className="flex h-full flex-col">
       <div className="px-5 pt-6 pb-5">
-        <LogoFull light />
+        <LogoFull />
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
         {NAV.map((item) => {
@@ -58,26 +58,30 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
               onClick={onNavigate}
               className={`group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-medium transition-all ${
                 active
-                  ? "bg-white/12 text-white shadow-inner"
-                  : "text-blue-100/70 hover:bg-white/8 hover:text-white"
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 font-semibold shadow-sm"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-100"
               }`}
             >
               {active && (
                 <motion.span
                   layoutId="nav-pill"
-                  className="absolute left-0 h-5 w-1 rounded-r-full bg-cyan-300"
+                  className="absolute left-0 h-5 w-1 rounded-r-full bg-blue-500"
                   transition={{ type: "spring", stiffness: 350, damping: 30 }}
                 />
               )}
-              <item.icon size={18} strokeWidth={2} className={active ? "text-cyan-300" : ""} />
+              <item.icon
+                size={18}
+                strokeWidth={2}
+                className={active ? "text-blue-500" : "text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"}
+              />
               {item.label}
               {active && <ChevronRight size={14} className="ml-auto opacity-60" />}
             </Link>
           );
         })}
       </nav>
-      <div className="mx-3 mb-4 rounded-2xl bg-white/8 p-4 text-xs text-blue-100/80 backdrop-blur">
-        <p className="font-semibold text-white">FRF Developers</p>
+      <div className="mx-3 mb-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 text-xs text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/20 dark:text-slate-400">
+        <p className="font-semibold text-slate-800 dark:text-slate-200">FRF Developers</p>
         <p className="mt-1 leading-relaxed">Replacing spreadsheets with a single source of truth for every site.</p>
       </div>
     </div>

@@ -47,7 +47,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Card className="p-5">
           <ChartTitle title="Expense Trend" sub="Monthly outflow from the daily ledger" />
-          <LineChart labels={calc.months.map(monthLabel)} series={[{ label: "Expense", data: calc.expense, color: "#2563eb" }]} />
+          <LineChart labels={calc.months.map(monthLabel)} series={[{ label: "Expense", data: calc.expense, color: "#ff6b35" }]} />
         </Card>
         <Card className="p-5">
           <ChartTitle title="Profit Trend" sub="Cumulative billing minus expense" />
@@ -58,8 +58,8 @@ export default function AnalyticsPage() {
           <BarChart
             labels={calc.months.map(monthLabel)}
             series={[
-              { label: "Inflow", data: calc.revenue, color: "#06b6d4" },
-              { label: "Outflow", data: calc.expense, color: "#2563eb" },
+              { label: "Inflow", data: calc.revenue, color: "#ffb08a" },
+              { label: "Outflow", data: calc.expense, color: "#ff6b35" },
             ]}
           />
         </Card>
@@ -69,7 +69,7 @@ export default function AnalyticsPage() {
         </Card>
         <Card className="p-5">
           <ChartTitle title="BOQ Comparison" sub="Total value per BOQ" />
-          <BarChart labels={activeBoqs.map((b) => b.name)} series={[{ label: "BOQ value", data: activeBoqs.map((b) => boqTotal(data.boqItems, b.id)), color: "#6366f1" }]} />
+          <BarChart labels={activeBoqs.map((b) => b.name)} series={[{ label: "BOQ value", data: activeBoqs.map((b) => boqTotal(data.boqItems, b.id)), color: "#ea580c" }]} />
         </Card>
         <Card className="p-5">
           <ChartTitle title="Site Comparison" sub="Category-wise expenditure per site (like the Dashboard sheet)" />

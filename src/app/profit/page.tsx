@@ -127,8 +127,8 @@ export default function ProfitPage() {
           <BarChart
             labels={data.sites.map((s) => s.name)}
             series={[
-              { label: "Revenue", data: data.sites.map((s) => s.budget), color: "#06b6d4" },
-              { label: "Expense", data: data.sites.map((s) => siteCategoryTotals(data.daily, s.id).grand), color: "#2563eb" },
+              { label: "Revenue", data: data.sites.map((s) => s.budget), color: "#ffb08a" },
+              { label: "Expense", data: data.sites.map((s) => siteCategoryTotals(data.daily, s.id).grand), color: "#ff6b35" },
               { label: "Profit", data: data.sites.map((s) => s.budget - siteCategoryTotals(data.daily, s.id).grand), color: "#10b981" },
             ]}
             height={300}

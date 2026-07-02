@@ -109,15 +109,15 @@ export default function DashboardPage() {
           <LineChart
             labels={stats.months.map(monthLabel)}
             series={[
-              { label: "Expense (out)", data: stats.expenseSeries, color: "#2563eb" },
-              { label: "Billing (in)", data: stats.inflowSeries, color: "#06b6d4" },
+              { label: "Expense (out)", data: stats.expenseSeries, color: "#ff6b35" },
+              { label: "Billing (in)", data: stats.inflowSeries, color: "#ffb08a" },
             ]}
             height={280}
           />
         </Card>
         <Card className="p-5">
           <SectionTitle icon={ActivityIcon} title="Project Status" sub="Sites & BOQs by state" />
-          <DonutChart labels={["Active", "Completed", "On Hold", "Draft"]} data={statusCounts} money={false} height={280} colors={["#2563eb", "#10b981", "#f59e0b", "#94a3b8"]} />
+          <DonutChart labels={["Active", "Completed", "On Hold", "Draft"]} data={statusCounts} money={false} height={280} colors={["#ff6b35", "#10b981", "#f59e0b", "#94a3b8"]} />
         </Card>
       </div>
 
