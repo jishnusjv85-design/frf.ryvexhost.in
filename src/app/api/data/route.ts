@@ -27,7 +27,13 @@ export async function GET() {
         db.select().from(dailyEntries).orderBy(asc(dailyEntries.id)),
         db.select().from(materials).orderBy(asc(materials.id)),
         db.select().from(tasks).orderBy(asc(tasks.id)),
-        db.select().from(users).orderBy(asc(users.id)),
+        db.select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+          active: users.active,
+        }).from(users).orderBy(asc(users.id)),
         db.select().from(activities).orderBy(desc(activities.createdAt)),
         db.select().from(notifications).orderBy(desc(notifications.createdAt)),
       ]);

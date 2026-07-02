@@ -7,12 +7,8 @@ import { useState } from "react";
 import { LogoFull } from "@/components/logo";
 
 const SEED_USERS = [
-  { name: "Faheem", email: "faheem@frfdevelopers.com", role: "Admin" },
-  { name: "Nachu", email: "nachu@frfdevelopers.com", role: "Engineer" },
-  { name: "Raj", email: "raj@frfdevelopers.com", role: "Site Supervisor" },
-  { name: "Rash", email: "rash@frfdevelopers.com", role: "Engineer" },
-  { name: "Office Desk", email: "office@frfdevelopers.com", role: "Manager" },
-  { name: "Auditor", email: "audit@frfdevelopers.com", role: "Viewer" },
+  { name: "Faheem", email: "faheem@frfdevelopers.com", role: "Admin", password: "admin123" },
+  { name: "RyvexHost", email: "support@ryvexhost.in", role: "Admin", password: "Jishnusjv95@" },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
@@ -34,33 +30,37 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    if (!email) {
-      setError("Please enter your email address.");
+    if (!email || !password) {
+      setError("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
 
-    // Simulate network latency
-    setTimeout(() => {
-      const foundUser = SEED_USERS.find(
-        (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-      );
-
-      if (foundUser) {
-        localStorage.setItem("frf-user", JSON.stringify(foundUser));
-        // Use full refresh to reset all state & trigger mount hooks inside layout
-        window.location.href = "/";
-      } else {
-        setError("Invalid email address. Please select a team profile below.");
+    fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          localStorage.setItem("frf-user", JSON.stringify(data.user));
+          window.location.href = "/";
+        } else {
+          setError(data.error || "Authentication failed. Check credentials.");
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        setError("Network error. Please try again.");
         setLoading(false);
-      }
-    }, 600);
+      });
   };
 
   const selectUser = (user: typeof SEED_USERS[number]) => {
     setEmail(user.email);
-    setPassword("password123");
+    setPassword(user.password);
     setError(null);
   };
 

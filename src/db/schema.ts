@@ -97,6 +97,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   role: text("role").notNull().default("Viewer"),
   active: boolean("active").notNull().default(true),
+  password: text("password").notNull().default("password123"),
 });
 
 export const activities = pgTable("activities", {

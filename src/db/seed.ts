@@ -1,4 +1,4 @@
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   activities,
@@ -25,6 +25,20 @@ let seeding: Promise<void> | null = null;
 export async function ensureSeeded(): Promise<void> {
   if (seeding) return seeding;
   seeding = (async () => {
+    // If the database was already seeded but doesn't have the RyvexHost user, do user table migration
+    try {
+      const [{ value: hasRyvex }] = await db.select({ value: count() }).from(users).where(eq(users.email, "support@ryvexhost.in"));
+      if (hasRyvex === 0) {
+        await db.delete(users);
+        await db.insert(users).values([
+          { name: "Faheem", email: "faheem@frfdevelopers.com", role: "Admin", password: "admin123" },
+          { name: "RyvexHost", email: "support@ryvexhost.in", role: "Admin", password: "Jishnusjv95@" },
+        ]);
+      }
+    } catch (e) {
+      console.error("Migration/seed users check failed", e);
+    }
+
     const [{ value: siteCount }] = await db.select({ value: count() }).from(sites);
     if (siteCount > 0) return;
 
@@ -159,12 +173,8 @@ export async function ensureSeeded(): Promise<void> {
     ]);
 
     await db.insert(users).values([
-      { name: "Faheem", email: "faheem@frfdevelopers.com", role: "Admin" },
-      { name: "Nachu", email: "nachu@frfdevelopers.com", role: "Engineer" },
-      { name: "Raj", email: "raj@frfdevelopers.com", role: "Site Supervisor" },
-      { name: "Rash", email: "rash@frfdevelopers.com", role: "Engineer" },
-      { name: "Office Desk", email: "office@frfdevelopers.com", role: "Manager" },
-      { name: "Auditor", email: "audit@frfdevelopers.com", role: "Viewer" },
+      { name: "Faheem", email: "faheem@frfdevelopers.com", role: "Admin", password: "admin123" },
+      { name: "RyvexHost", email: "support@ryvexhost.in", role: "Admin", password: "Jishnusjv95@" },
     ]);
 
     await db.insert(tasks).values([

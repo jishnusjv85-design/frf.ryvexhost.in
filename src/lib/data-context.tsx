@@ -46,9 +46,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const mutate = useCallback(
     async (path: string, method: "POST" | "PATCH" | "DELETE", body: unknown) => {
       try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (typeof window !== "undefined") {
+          const raw = localStorage.getItem("frf-user");
+          if (raw) {
+            try {
+              const u = JSON.parse(raw);
+              if (u.email) headers["X-User-Email"] = u.email;
+              if (u.role) headers["X-User-Role"] = u.role;
+            } catch {}
+          }
+        }
+
         const res = await fetch(path, {
           method,
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(body),
         });
         await refresh();
