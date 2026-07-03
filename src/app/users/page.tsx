@@ -298,7 +298,7 @@ export default function UsersPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="faheem@frfdevelopers.com"
-                disabled={submitting || (editing && (editing.email === "faheem@frfdevelopers.com" || editing.email === "support@ryvexhost.in"))}
+                disabled={submitting || !!(editing && (editing.email === "faheem@frfdevelopers.com" || editing.email === "support@ryvexhost.in"))}
                 className={inputCls}
                 required
               />
@@ -325,7 +325,7 @@ export default function UsersPage() {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  disabled={submitting || (editing && (editing.email === "faheem@frfdevelopers.com" || editing.email === "support@ryvexhost.in"))}
+                  disabled={submitting || !!(editing && (editing.email === "faheem@frfdevelopers.com" || editing.email === "support@ryvexhost.in"))}
                   className={inputCls}
                 >
                   {ALL_ROLES.map((r) => (
@@ -342,7 +342,7 @@ export default function UsersPage() {
                 <select
                   value={active ? "Active" : "Inactive"}
                   onChange={(e) => setActive(e.target.value === "Active")}
-                  disabled={submitting || (editing && (editing.email === "faheem@frfdevelopers.com" || editing.email === "support@ryvexhost.in"))}
+                  disabled={submitting || !!(editing && (editing.email === "faheem@frfdevelopers.com" || editing.email === "support@ryvexhost.in"))}
                   className={inputCls}
                 >
                   <option value="Active">Active</option>
