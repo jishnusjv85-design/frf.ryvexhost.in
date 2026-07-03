@@ -66,7 +66,10 @@ export default function UsersPage() {
     const raw = localStorage.getItem("frf-user");
     if (raw) {
       try {
-        setCurrentUser(JSON.parse(raw));
+        const u = JSON.parse(raw);
+        Promise.resolve().then(() => {
+          setCurrentUser(u);
+        });
       } catch {}
     }
   }, []);

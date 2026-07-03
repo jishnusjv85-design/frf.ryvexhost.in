@@ -218,14 +218,19 @@ export function Shell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const raw = localStorage.getItem("frf-user");
+    let user = null;
     if (raw) {
       try {
-        setCurrentUser(JSON.parse(raw));
+        user = JSON.parse(raw);
       } catch {
         localStorage.removeItem("frf-user");
       }
     }
-    setAuthLoading(false);
+    const finalUser = user;
+    Promise.resolve().then(() => {
+      setCurrentUser(finalUser);
+      setAuthLoading(false);
+    });
   }, []);
 
   useEffect(() => {

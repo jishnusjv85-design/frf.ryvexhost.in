@@ -62,7 +62,11 @@ export default function StatusPage() {
     if (raw) {
       try {
         const u = JSON.parse(raw);
-        if (u && u.name) setPrepUser(u.name);
+        if (u && u.name) {
+          Promise.resolve().then(() => {
+            setPrepUser(u.name);
+          });
+        }
       } catch {}
     }
   }, []);
