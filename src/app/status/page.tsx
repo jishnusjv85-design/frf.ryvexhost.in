@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Camera,
+  CheckCircle2,
   ClipboardList,
   Download,
   HardHat,
@@ -13,8 +14,9 @@ import {
   Search,
   StickyNote,
   Trash2,
+  Upload,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DataTable, type Column } from "@/components/table";
 import { Badge, Button, Card, Field, inputCls, Modal, PageHeader, ProgressBar, Spinner } from "@/components/ui";
 import { useData, useDraft } from "@/lib/data-context";
@@ -45,8 +47,113 @@ const emptyForm: DraftForm = {
   notes: "",
 };
 
+type ImportRow = {
+  rowNo: number;
+  entryDate: string;
+  siteId: string;
+  siteLabel: string;
+  category: string;
+  name: string;
+  head: string;
+  qty: number;
+  rate: number;
+  notes: string;
+  errors: string[];
+};
+
+function parseCsvLine(line: string) {
+  const cells: string[] = [];
+  let current = "";
+  let quoted = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === "\"" && quoted && next === "\"") {
+      current += "\"";
+      i++;
+    } else if (char === "\"") {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function normalizeHeader(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeSiteKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeDate(value: string) {
+  const raw = value.trim();
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const slash = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (!slash) return raw;
+  const day = slash[1].padStart(2, "0");
+  const month = slash[2].padStart(2, "0");
+  const year = slash[3].length === 2 ? `20${slash[3]}` : slash[3];
+  return `${year}-${month}-${day}`;
+}
+
+function parseDailyStatusCsv(text: string, sites: { id: number; name: string; code: string }[]) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+
+  const headers = parseCsvLine(lines[0]).map(normalizeHeader);
+  const siteByKey = new Map<string, number>();
+  sites.forEach((site) => {
+    siteByKey.set(normalizeSiteKey(site.name), site.id);
+    siteByKey.set(normalizeSiteKey(site.code), site.id);
+  });
+
+  const valueAt = (cells: string[], names: string[]) => {
+    const index = names.map(normalizeHeader).map((name) => headers.indexOf(name)).find((i) => i >= 0);
+    return index === undefined ? "" : cells[index] ?? "";
+  };
+
+  return lines.slice(1).map((line, index): ImportRow => {
+    const cells = parseCsvLine(line);
+    const siteLabel = valueAt(cells, ["Site", "Site Code", "Project", "Project Site"]);
+    const category = valueAt(cells, ["Type", "Category", "Daily Type"]) || "Expense";
+    const name = valueAt(cells, ["Name/Description", "Name", "Description", "Material", "Labour"]);
+    const head = valueAt(cells, ["Category/Unit/Head", "Head", "Unit", "Work Head"]);
+    const qty = parseFloat(valueAt(cells, ["Qty/Day", "Qty", "Quantity", "Days"])) || 0;
+    const rate = parseFloat(valueAt(cells, ["Rate", "Rate Rs", "Amount Rate"])) || 0;
+    const siteId = siteByKey.get(normalizeSiteKey(siteLabel));
+    const errors: string[] = [];
+
+    if (!siteId) errors.push("Site not found");
+    if (!name.trim()) errors.push("Name missing");
+    if (!DAILY_CATEGORIES.includes(category as (typeof DAILY_CATEGORIES)[number])) errors.push("Unknown type");
+
+    return {
+      rowNo: index + 2,
+      entryDate: normalizeDate(valueAt(cells, ["Date", "Entry Date", "EntryDate"])),
+      siteId: siteId ? String(siteId) : "",
+      siteLabel,
+      category,
+      name,
+      head,
+      qty,
+      rate,
+      notes: valueAt(cells, ["Notes", "Remarks"]),
+      errors,
+    };
+  });
+}
+
 export default function StatusPage() {
-  const { data, loading, mutate } = useData();
+  const { data, loading, mutate, refresh } = useData();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Daily Update Status");
   const [q, setQ] = useState("");
   const [siteFilter, setSiteFilter] = useState<number | 0>(0);
@@ -55,8 +162,14 @@ export default function StatusPage() {
   const [editing, setEditing] = useState<DailyEntry | null>(null);
   const [form, setForm, clearDraft] = useDraft<DraftForm>("daily-update", emptyForm);
   const [saving, setSaving] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [syncingImport, setSyncingImport] = useState(false);
 
   const [prepUser, setPrepUser] = useState("Faheem");
+  const [currentRole, setCurrentRole] = useState("Viewer");
   useEffect(() => {
     const raw = localStorage.getItem("frf-user");
     if (raw) {
@@ -65,6 +178,7 @@ export default function StatusPage() {
         if (u && u.name) {
           Promise.resolve().then(() => {
             setPrepUser(u.name);
+            setCurrentRole(u.role || "Viewer");
           });
         }
       } catch {}
@@ -141,6 +255,71 @@ export default function StatusPage() {
     );
   };
 
+  const importCsv = async (file: File) => {
+    setImportError(null);
+    const rows = parseDailyStatusCsv(await file.text(), data.sites);
+    if (rows.length === 0) {
+      setImportRows([]);
+      setImportError("No daily status rows found. Use a CSV with headers like Date, Site, Type, Name/Description, Category/Unit/Head, Qty/Day and Rate.");
+    } else {
+      setImportRows(rows);
+    }
+    setImportOpen(true);
+  };
+
+  const syncImportedRows = async () => {
+    if (currentRole !== "Admin") {
+      setImportError("Only Admin can sync verified import data.");
+      return;
+    }
+
+    const invalidRows = importRows.filter((row) => row.errors.length > 0);
+    if (invalidRows.length) {
+      setImportError("Fix or remove invalid rows before syncing.");
+      return;
+    }
+
+    setSyncingImport(true);
+    setImportError(null);
+    try {
+      const raw = localStorage.getItem("frf-user");
+      const user = raw ? JSON.parse(raw) : {};
+      const res = await fetch("/api/daily/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Email": user.email || "",
+          "X-User-Role": user.role || "",
+        },
+        body: JSON.stringify({
+          entries: importRows.map((row) => ({
+            entryDate: row.entryDate || null,
+            siteId: Number(row.siteId),
+            category: row.category,
+            name: row.name,
+            head: row.head,
+            qty: row.qty,
+            rate: row.rate,
+            notes: row.notes,
+          })),
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Import sync failed");
+      }
+
+      await refresh();
+      setImportOpen(false);
+      setImportRows([]);
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "Import sync failed");
+    } finally {
+      setSyncingImport(false);
+    }
+  };
+
   const columns: Column<DailyEntry>[] = [
     {
       key: "date",
@@ -180,6 +359,9 @@ export default function StatusPage() {
   ];
 
   const filteredTotal = filtered.reduce((s, d) => s + entryTotal(d), 0);
+  const importValidRows = importRows.filter((row) => row.errors.length === 0);
+  const importInvalidRows = importRows.length - importValidRows.length;
+  const isAdmin = currentRole === "Admin";
 
   // Summary by Site (exact replica of the sheet's summary block)
   const summaryCats = ["Labour", "Cement", "Steel", "M-Sand", "K-Sand", "Metal", "Boller", "M-Waste", "Laterite", "Expense"];
@@ -201,6 +383,18 @@ export default function StatusPage() {
         subtitle={`Prepared by ${prepUser} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}
         actions={
           <>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void importCsv(file);
+                e.target.value = "";
+              }}
+            />
+            <Button variant="outline" onClick={() => importFileRef.current?.click()}><Upload size={15} /> Import Daily Status</Button>
             <Button variant="outline" onClick={exportCsv}><Download size={15} /> Export</Button>
             <Button onClick={openAdd}><Plus size={15} /> Add Daily Update</Button>
           </>
@@ -416,6 +610,98 @@ export default function StatusPage() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Verify Daily Status Import" wide>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-blue-50 px-4 py-3 dark:bg-blue-500/10">
+              <p className="text-[11px] font-semibold tracking-wider text-blue-500 uppercase">Rows Found</p>
+              <p className="mt-1 text-xl font-bold text-blue-700 dark:text-blue-300">{importRows.length}</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50 px-4 py-3 dark:bg-emerald-500/10">
+              <p className="text-[11px] font-semibold tracking-wider text-emerald-500 uppercase">Ready</p>
+              <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300">{importValidRows.length}</p>
+            </div>
+            <div className={`rounded-xl px-4 py-3 ${importInvalidRows ? "bg-rose-50 dark:bg-rose-500/10" : "bg-slate-50 dark:bg-slate-800"}`}>
+              <p className={`text-[11px] font-semibold tracking-wider uppercase ${importInvalidRows ? "text-rose-500" : "text-slate-400"}`}>Needs Review</p>
+              <p className={`mt-1 text-xl font-bold ${importInvalidRows ? "text-rose-700 dark:text-rose-300" : "text-slate-500"}`}>{importInvalidRows}</p>
+            </div>
+          </div>
+
+          {importError ? (
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/20 dark:text-rose-400">
+              <AlertTriangle size={15} />
+              <span>{importError}</span>
+            </div>
+          ) : null}
+
+          {!isAdmin ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-500/10 dark:text-amber-300">
+              You can review imported rows here, but only an Admin can sync them into existing daily status data.
+            </div>
+          ) : null}
+
+          <div className="max-h-[45vh] overflow-auto rounded-xl border border-slate-200 dark:border-slate-700">
+            <table className="w-full min-w-[920px] text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase dark:bg-slate-800 dark:text-slate-400">
+                  <th className="px-3 py-2.5">Row</th>
+                  <th className="px-3 py-2.5">Date</th>
+                  <th className="px-3 py-2.5">Site</th>
+                  <th className="px-3 py-2.5">Type</th>
+                  <th className="px-3 py-2.5">Name / Description</th>
+                  <th className="px-3 py-2.5">Head</th>
+                  <th className="px-3 py-2.5 text-right">Qty</th>
+                  <th className="px-3 py-2.5 text-right">Rate</th>
+                  <th className="px-3 py-2.5 text-right">Total</th>
+                  <th className="px-3 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {importRows.map((row) => (
+                  <tr key={row.rowNo} className="border-t border-slate-100 dark:border-slate-800">
+                    <td className="px-3 py-2.5 text-slate-400">{row.rowNo}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-slate-600 dark:text-slate-300">{row.entryDate || "-"}</td>
+                    <td className="px-3 py-2.5 font-semibold whitespace-nowrap text-blue-700 dark:text-blue-300">{row.siteLabel || "-"}</td>
+                    <td className="px-3 py-2.5">{row.category}</td>
+                    <td className="px-3 py-2.5 font-medium text-slate-800 dark:text-slate-100">{row.name || "-"}</td>
+                    <td className="px-3 py-2.5 text-slate-500">{row.head || "-"}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{num(row.qty)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{inr(row.rate)}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{inr(row.qty * row.rate)}</td>
+                    <td className="px-3 py-2.5">
+                      {row.errors.length ? (
+                        <span className="text-xs font-semibold text-rose-600 dark:text-rose-300">{row.errors.join(", ")}</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
+                          <CheckCircle2 size={13} /> Verified
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {importRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-3 py-8 text-center text-sm text-slate-400">No rows loaded.</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <Button variant="ghost" onClick={() => setImportOpen(false)} disabled={syncingImport}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void syncImportedRows()}
+              disabled={syncingImport || !isAdmin || importRows.length === 0 || importInvalidRows > 0}
+            >
+              {syncingImport ? "Syncing..." : "Sync Verified Data"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Daily Update" : "Add Daily Update"} wide>
         <p className="-mt-3 mb-4 text-xs text-slate-400">{editing ? "" : "Auto-saved as draft while you type."}</p>

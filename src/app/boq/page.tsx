@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Archive, Calendar, Copy, FileSpreadsheet, MoreVertical, Pencil, Plus, Search, Trash2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, Field, inputCls, Modal, PageHeader, ProgressBar, Spinner } from "@/components/ui";
 import { useData } from "@/lib/data-context";
 import { fmtDate, inr, inrCompact } from "@/lib/format";
@@ -23,6 +23,7 @@ export default function BoqPage() {
   const [editing, setEditing] = useState<Boq | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [menuFor, setMenuFor] = useState<number | null>(null);
+  const [handledCreateSiteId, setHandledCreateSiteId] = useState<string | null>(null);
 
   const list = useMemo(() => {
     if (!data) return [];
@@ -36,6 +37,31 @@ export default function BoqPage() {
     else rows = [...rows].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return rows;
   }, [data, q, statusFilter, sort, showArchived]);
+
+  useEffect(() => {
+    if (!data || handledCreateSiteId) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const shouldCreate = params.get("create") === "1";
+    const siteId = params.get("siteId");
+    if (!shouldCreate || !siteId) return;
+
+    const site = data.sites.find((s) => String(s.id) === siteId);
+    if (!site) return;
+
+    Promise.resolve().then(() => {
+      setEditing(null);
+      setForm({
+        ...emptyForm,
+        name: `${site.name} BOQ`,
+        siteId,
+        status: "Draft",
+      });
+      setModalOpen(true);
+      setHandledCreateSiteId(siteId);
+      router.replace("/boq");
+    });
+  }, [data, handledCreateSiteId, router]);
 
   if (loading || !data) return <Spinner />;
 
